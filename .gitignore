@@ -1,5 +1,6 @@
-py_path_env/
-.py_path_env/
+path_backup.txt
+venv/
+.venv/
 .idea
 .idea/
 # Byte-compiled / optimized / DLL files
