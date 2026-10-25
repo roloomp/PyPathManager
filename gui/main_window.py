@@ -1,38 +1,47 @@
-import os
-from PyQt6 import uic
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QStackedWidget, QButtonGroup
 from gui.handlers import python_handlers as py
-
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-UI_PATH = os.path.join(ROOT, "ui", "main_window.ui")
+from gui.handlers import venv_handlers as vh
+from gui.path_page import PathPage
+from gui.venv_page import VenvPage
+from gui.widgets import make_label, make_button
 
 
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
-        uic.loadUi(UI_PATH, self)
         self.setWindowTitle("PyPath Manager")
-        self.manual = []
-        self.items = []
-        self.tasks = set()
-        self.libs_token = 0
+        self.setMinimumSize(730, 570)
 
-        py.setup_table(self)
-        self.py_update.clicked.connect(lambda: py.refresh(self))
-        self.py_add.clicked.connect(lambda: py.on_add(self))
-        self.fin_confirm.clicked.connect(lambda: py.on_confirm(self))
+        self.status = make_label("", 10)
+        self.status.setWordWrap(True)
+        self.path_page = PathPage(self.status)
+        self.venv_page = VenvPage(self.status)
+        self.stack = QStackedWidget()
+        self.stack.addWidget(self.path_page)
+        self.stack.addWidget(self.venv_page)
 
-        self.lib_update.clicked.connect(lambda: py.on_lib_update(self))
-        self.lib_delete.clicked.connect(lambda: py.on_lib_delete(self))
-        self.lib_select_all.clicked.connect(lambda: py.on_select_all(self))
-        self.fin_export.clicked.connect(lambda: py.on_export(self))
-        self.fin_import.clicked.connect(lambda: py.on_import(self))
+        self.path_button = make_button("PATH", lambda: self.show_page(0))
+        self.venv_button = make_button("venv", lambda: self.show_page(1))
+        group = QButtonGroup(self)
+        for b in (self.path_button, self.venv_button):
+            b.setCheckable(True)
+            group.addButton(b)
+        self.path_button.setChecked(True)
 
-        for b in (self.py_delete, self.lib_download, self.fin_backup,
-                  self.path_button, self.venv_button):
-            b.clicked.connect(self.not_ready)
+        top = QHBoxLayout()
+        top.addWidget(self.path_button)
+        top.addWidget(self.venv_button)
+        top.addStretch()
 
-        py.refresh(self)
+        root = QVBoxLayout(self)
+        root.addLayout(top)
+        root.addWidget(self.stack, 1)
+        root.addWidget(self.status)
 
-    def not_ready(self):
-        self.status.setText("Пока не реализовано.")
+        vh.setup(self.venv_page)
+        py.refresh(self.path_page)
+
+    def show_page(self, index):
+        self.stack.setCurrentIndex(index)
+        if index == 1:
+            vh.refresh_pythons(self.venv_page)

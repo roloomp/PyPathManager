@@ -21,3 +21,19 @@ class Task(QObject):
             self.err.emit(str(e))
         else:
             self.ok.emit(result)
+
+
+_running = set()
+
+
+def run_async(fn, args, on_ok, on_err):
+    task = Task(fn, *args)
+    _running.add(task)
+
+    def done(cb, value):
+        _running.discard(task)
+        cb(value)
+
+    task.ok.connect(lambda v: done(on_ok, v))
+    task.err.connect(lambda m: done(on_err, m))
+    task.start()
