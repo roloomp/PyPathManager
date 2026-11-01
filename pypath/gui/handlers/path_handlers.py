@@ -1,7 +1,7 @@
-from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QTableWidgetItem, QMessageBox
-from core.interpreters import get_all
-from core.path_manager import set_active
+from pypath.gui.widgets import mark_ok
+from pypath.services.interpreters import get_all
+from pypath.services.path_env import set_active
 
 
 def show_libs(win, row):
@@ -21,8 +21,7 @@ def refresh(win):
             cell = QTableWidgetItem(text)
             cell.setToolTip(text)
             if i["active"]:
-                cell.setBackground(QColor("#dff3e3"))
-                cell.setForeground(QColor("#1b5e20"))
+                mark_ok(cell)
             t.setItem(r, c, cell)
     t.blockSignals(False)
     if not win.items:

@@ -1,8 +1,8 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLineEdit
-from gui.handlers import venv_handlers as vh
-from gui.libs_panel import LibsPanel
-from gui.widgets import BTN_H, make_label, make_button, make_table, toolbar
+from pypath.gui.handlers import venv_handlers as vh
+from pypath.gui.panels.libs_panel import LibsPanel
+from pypath.gui.widgets import BTN_H, make_label, make_button, make_table, toolbar
 
 
 class VenvPage(QWidget):

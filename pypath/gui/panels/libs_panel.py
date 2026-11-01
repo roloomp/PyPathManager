@@ -1,13 +1,12 @@
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidgetItem, QMessageBox,
-                             QFileDialog, QInputDialog, QDialog, QDialogButtonBox,
-                             QFormLayout, QLineEdit)
-from core.libraries import (get_libs, update_libs, delete_libs, install_libs,
+                             QFileDialog, QInputDialog, QLineEdit)
+from pypath.services.pip import (get_libs, update_libs, delete_libs, install_libs,
                             get_outdated, install_from_file, get_versions, get_required_by, PROTECTED)
-from core.task import run_async
-from core.utils import num_key
-from gui.widgets import BTN_H, make_label, make_button, make_table, toolbar
+from pypath.common.utils import canon, num_key
+from pypath.gui.dialogs import libs as dialogs
+from pypath.gui.tasks import run_async
+from pypath.gui.widgets import BTN_H, make_label, make_button, make_table, toolbar, mark_warn
 
 
 class Item(QTableWidgetItem):
@@ -34,6 +33,7 @@ class LibsPanel(QWidget):
         self.no_exe_text = no_exe_text
         self.exe = None
         self.token = 0
+        self.task = None  # текущая отменяемая задача
         self.locked = []  # виджеты страницы, блокируемые на время операции
         self.table = make_table(["Библиотека", "Версия", "Последняя версия"], 0, False)
         self.sort = None  # (столбец, порядок) последней сортировки по клику на заголовок
@@ -55,11 +55,15 @@ class LibsPanel(QWidget):
         right = [make_button("Экспорт библиотек", self.on_export),
                  make_button("Импорт библиотек", self.on_import)]
         self.buttons = left + right
+        # кнопка отмены не входит в self.buttons: set_busy её не блокирует
+        self.cancel_btn = make_button("Отмена", self.on_cancel)
+        self.cancel_btn.setShortcut("Esc")
+        self.cancel_btn.hide()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.table, 1)
-        layout.addLayout(toolbar(left, right))
+        layout.addLayout(toolbar(left, [self.cancel_btn, *right]))
 
     def header(self, title):
         """Строка заголовка секции: название слева, поиск справа."""
@@ -68,6 +72,49 @@ class LibsPanel(QWidget):
         row.addStretch()
         row.addWidget(self.search)
         return row
+
+    # ---- фоновые задачи и отмена ----
+
+    def spawn(self, fn, args, on_ok, on_err, on_cancel, confirm_cancel=False):
+        """Запускает отменяемую задачу; кнопка «Отмена» видна, пока она выполняется.
+        confirm_cancel: перед отменой спросить, т.к. окружение может остаться изменённым наполовину."""
+        def release(cb):
+            def inner(*value):
+                if self.task is task:
+                    self.task = None
+                    self.cancel_btn.hide()
+                cb(*value)
+            return inner
+
+        task = run_async(fn, args, release(on_ok), release(on_err), release(on_cancel), cancellable=True)
+        task.confirm_cancel = confirm_cancel
+        self.task = task
+        self.cancel_btn.show()
+
+    def abort(self):
+        """Прерывает текущую задачу без сообщений: её результат всё равно устарел."""
+        if self.task:
+            self.task.cancel()
+            self.task = None
+            self.cancel_btn.hide()
+
+    def risky(self):
+        """Идёт операция, которую нежелательно обрывать (изменение окружения или неотменяемая)."""
+        return self.busy and (self.task is None or self.task.confirm_cancel)
+
+    def on_cancel(self):
+        task = self.task
+        if not task:
+            return
+        if task.confirm_cancel and QMessageBox.question(
+                self, "Отмена", "Прервать операцию?\nОкружение может остаться в промежуточном состоянии."
+        ) != QMessageBox.StandardButton.Yes:
+            return
+        if task is self.task:  # пока висел вопрос, задача могла завершиться сама
+            self.status.setText("Отмена...")
+            task.cancel()
+
+    # ---- таблица ----
 
     def on_sort(self, col):
         order = Qt.SortOrder.AscendingOrder
@@ -92,9 +139,9 @@ class LibsPanel(QWidget):
         return [r for r in range(self.table.rowCount()) if not self.table.isRowHidden(r)]
 
     def apply_filter(self):
-        q = self.search.text().strip().lower().replace("_", "-")
+        q = canon(self.search.text().strip())
         for r in range(self.table.rowCount()):
-            name = self.table.item(r, 0).text().lower().replace("_", "-")
+            name = canon(self.table.item(r, 0).text())
             self.table.setRowHidden(r, bool(q) and q not in name)
 
     def checked(self):
@@ -118,11 +165,14 @@ class LibsPanel(QWidget):
         self.status.setText(self.no_exe_text)
         return False
 
+    # ---- загрузка списка ----
+
     def reload(self):
         if self.exe and not self.busy:
             self.load(self.exe)
 
     def load(self, exe, note=""):
+        self.abort()  # предыдущая загрузка или проверка обновлений уже не нужна
         self.token += 1
         token = self.token
         self.checking = False
@@ -133,9 +183,10 @@ class LibsPanel(QWidget):
             return
         # при загрузке остальные виджеты не блокируются: смена выбора отменяет устаревший результат
         self.set_busy(True, "Загрузка библиотек...", lock_others=False)
-        run_async(get_libs, (exe,),
-                  lambda libs: self.on_loaded(token, exe, libs, note),
-                  lambda msg: self.on_failed(token, msg))
+        self.spawn(get_libs, (exe,),
+                   lambda libs: self.on_loaded(token, exe, libs, note),
+                   lambda msg: self.on_failed(token, msg),
+                   lambda: self.on_load_cancelled(token))
 
     def on_loaded(self, token, exe, libs, note):
         if token != self.token:
@@ -157,9 +208,10 @@ class LibsPanel(QWidget):
         self.checking = True
         self.set_busy(False, base + ". Проверка обновлений...")
         # последние версии грузятся отдельно (нужна сеть, может быть долго)
-        run_async(get_outdated, (exe,),
-                  lambda latest: self.on_latest(token, latest, base),
-                  lambda msg: self.on_latest_failed(token, base))
+        self.spawn(get_outdated, (exe,),
+                   lambda latest: self.on_latest(token, latest, base),
+                   lambda msg: self.on_latest_failed(token, base),
+                   lambda: self.on_latest_failed(token, base, "Проверка обновлений отменена."))
 
     def on_latest(self, token, latest, base):
         if token != self.token:
@@ -170,36 +222,45 @@ class LibsPanel(QWidget):
         t.setUpdatesEnabled(False)
         for r in range(t.rowCount()):
             name, cur = t.item(r, 0).text(), t.item(r, 1).text()
-            new = latest.get(name.lower())
+            new = latest.get(canon(name))
             cell = Item(new or cur, (0 if new else 1, name.lower()))
             if new:
-                cell.setBackground(QColor("#fff3cd"))
-                cell.setForeground(QColor("#7a5b00"))
+                mark_warn(cell)
             t.setItem(r, 2, cell)
         t.setUpdatesEnabled(True)
         self.resort()
         self.status.setText(f"{base}, устарело: {len(latest)}")
 
-    def on_latest_failed(self, token, base):
+    def on_latest_failed(self, token, base, reason="Не удалось проверить обновления."):
         if token != self.token:
             return
         self.checking = False
         self.busy_changed.emit()
         for r in range(self.table.rowCount()):
             self.table.setItem(r, 2, Item("—", (1, self.table.item(r, 0).text().lower())))
-        self.status.setText(f"{base}. Не удалось проверить обновления.")
+        self.status.setText(f"{base}. {reason}")
 
     def on_failed(self, token, msg):
         if token != self.token:
             return
         self.set_busy(False, f"Не удалось получить библиотеки: {msg}")
 
+    def on_load_cancelled(self, token):
+        if token != self.token:
+            return
+        self.set_busy(False, "Загрузка отменена. Обновить: F5.")
+
+    # ---- операции ----
+
     def run_op(self, fn, args, start_text, ok_text):
         exe = self.exe
         self.set_busy(True, start_text)
-        run_async(fn, (exe, *args),
-                  lambda _: self.load(exe, ok_text + ". " if ok_text else ""),
-                  lambda msg: self.set_busy(False, f"Ошибка: {msg}"))
+        self.spawn(fn, (exe, *args),
+                   lambda _: self.load(exe, ok_text + ". " if ok_text else ""),
+                   lambda msg: self.set_busy(False, f"Ошибка: {msg}"),
+                   # прерванная операция могла изменить часть пакетов: показываем реальное состояние
+                   lambda: self.load(exe, "Операция отменена. "),
+                   confirm_cancel=True)
 
     def on_select_all(self):
         t = self.table
@@ -212,24 +273,10 @@ class LibsPanel(QWidget):
     def on_install(self):
         if not self.need_exe():
             return
-        dlg = QDialog(self)
-        dlg.setWindowTitle("Установка")
-        names_edit = QLineEdit()
-        names_edit.setPlaceholderText("например: requests flask")
-        ver_edit = QLineEdit()
-        ver_edit.setPlaceholderText("пусто = последняя")
-        box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        box.accepted.connect(dlg.accept)
-        box.rejected.connect(dlg.reject)
-        form = QFormLayout(dlg)
-        form.addRow("Пакеты:", names_edit)
-        form.addRow("Версия:", ver_edit)
-        form.addRow(box)
-        if dlg.exec() != QDialog.DialogCode.Accepted:
+        answer = dialogs.ask_install(self)
+        if not answer or not answer[0]:
             return
-        names, ver = names_edit.text().split(), ver_edit.text().strip()
-        if not names:
-            return
+        names, ver = answer
         if ver:
             if len(names) != 1:
                 self.status.setText("Версию можно указать только для одного пакета.")
@@ -268,9 +315,10 @@ class LibsPanel(QWidget):
             return
         name = names[0]
         self.set_busy(True, f"Получение версий {name}...")
-        run_async(get_versions, (self.exe, name),
-                  lambda versions: self.pick_version(name, versions),
-                  lambda msg: self.set_busy(False, f"Не удалось получить версии: {msg}"))
+        self.spawn(get_versions, (self.exe, name),
+                   lambda versions: self.pick_version(name, versions),
+                   lambda msg: self.set_busy(False, f"Не удалось получить версии: {msg}"),
+                   lambda: self.set_busy(False, "Отменено."))
 
     def pick_version(self, name, versions):
         self.set_busy(False)
@@ -293,7 +341,7 @@ class LibsPanel(QWidget):
         if not self.need_exe():
             return
         checked = self.checked()
-        names = [n for n in checked if n.lower() not in PROTECTED]
+        names = [n for n in checked if canon(n) not in PROTECTED]
         skipped = len(checked) - len(names)
         if not names:
             self.status.setText("pip, setuptools и wheel удалять нельзя." if skipped
@@ -301,23 +349,14 @@ class LibsPanel(QWidget):
             return
         self.set_busy(True, "Проверка зависимостей...")
         # если проверка не удалась, просто спрашиваем без предупреждения
-        run_async(get_required_by, (self.exe, names),
-                  lambda info: self.confirm_delete(names, skipped, info),
-                  lambda msg: self.confirm_delete(names, skipped, {}))
+        self.spawn(get_required_by, (self.exe, names),
+                   lambda info: self.confirm_delete(names, skipped, info),
+                   lambda msg: self.confirm_delete(names, skipped, {}),
+                   lambda: self.set_busy(False, "Отменено."))
 
     def confirm_delete(self, names, skipped, info):
         self.set_busy(False)
-        gone = {n.lower().replace("_", "-") for n in names}
-        lines = []
-        for name, users in info.items():
-            left = [u for u in users if u.lower().replace("_", "-") not in gone]
-            if left:
-                lines.append(f"• {name} ← {', '.join(left)}")
-        text = f"Удалить библиотек: {len(names)}?"
-        if lines:
-            shown = lines[:8] + ([f"…и ещё {len(lines) - 8}"] if len(lines) > 8 else [])
-            text += "\n\nЭти библиотеки нужны другим пакетам:\n" + "\n".join(shown)
-        if QMessageBox.question(self, "Удаление", text) != QMessageBox.StandardButton.Yes:
+        if not dialogs.ask_delete(self, names, info):
             self.status.setText("")
             return
         self.run_op(delete_libs, (names,), f"Удаление: {len(names)} шт...",

@@ -1,17 +1,15 @@
-import os
 from PyQt6.QtCore import QSettings
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QStackedWidget,
-                             QButtonGroup, QProgressBar)
-from core.admin import is_admin, restart_as_admin
-from gui.handlers import python_handlers as py
-from gui.handlers import venv_handlers as vh
-from gui.help import show_docs, show_about
-from gui.path_page import PathPage
-from gui.venv_page import VenvPage
-from gui.widgets import make_label, make_button
-
-SETTINGS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "settings.ini")
+                             QButtonGroup, QMessageBox, QProgressBar)
+from pypath.config.paths import SETTINGS_FILE
+from pypath.gui.dialogs.help import show_docs, show_about
+from pypath.gui.handlers import path_handlers as py
+from pypath.gui.handlers import venv_handlers as vh
+from pypath.gui.pages.path_page import PathPage
+from pypath.gui.pages.venv_page import VenvPage
+from pypath.gui.widgets import make_label, make_button
+from pypath.system.admin import is_admin, restart_as_admin
 
 
 class MainWindow(QMainWindow):
@@ -19,7 +17,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("PyPath Manager")
         self.setMinimumSize(730, 570)
-        self.settings = QSettings(SETTINGS, QSettings.Format.IniFormat)
+        self.settings = QSettings(SETTINGS_FILE, QSettings.Format.IniFormat)
 
         self.status = make_label("", 10)
         self.status.setWordWrap(True)
@@ -142,5 +140,13 @@ class MainWindow(QMainWindow):
         self.settings.sync()
 
     def closeEvent(self, event):
+        pages = (self.path_page, self.venv_page)
+        if any(p.libs.risky() for p in pages):
+            answer = QMessageBox.question(self, "Выход", "Выполняется операция. Прервать её и выйти?")
+            if answer != QMessageBox.StandardButton.Yes:
+                event.ignore()
+                return
+        for p in pages:
+            p.libs.abort()  # иначе pip продолжит работать после закрытия окна
         self.save_settings()
         super().closeEvent(event)

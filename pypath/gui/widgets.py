@@ -1,7 +1,19 @@
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QColor, QFont
 from PyQt6.QtWidgets import QLabel, QPushButton, QTableWidget, QHeaderView, QAbstractItemView, QHBoxLayout
 
 BTN_H = 33
+OK_BG, OK_FG = "#dff3e3", "#1b5e20"      # активный / выбранный
+WARN_BG, WARN_FG = "#fff3cd", "#7a5b00"  # есть обновление
+
+
+def mark_ok(cell):
+    cell.setBackground(QColor(OK_BG))
+    cell.setForeground(QColor(OK_FG))
+
+
+def mark_warn(cell):
+    cell.setBackground(QColor(WARN_BG))
+    cell.setForeground(QColor(WARN_FG))
 
 
 def make_label(text, size):

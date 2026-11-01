@@ -1,11 +1,12 @@
 import os
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QTableWidgetItem, QMessageBox, QFileDialog, QInputDialog
-from core import venvs as vn
-from core.interpreters import get_all
-from core.task import run_async
-from core.utils import norm
+from pypath.common.utils import norm
+from pypath.gui.dialogs.venv import ask_venv_delete
+from pypath.gui.tasks import run_async
+from pypath.gui.widgets import mark_ok
+from pypath.services import venv_store, venvs as vn
+from pypath.services.interpreters import get_all
 
 
 def same(a, b):
@@ -13,7 +14,7 @@ def same(a, b):
 
 
 def setup(win):
-    win.venvs = vn.load_list()
+    win.venvs = venv_store.load_list()
     refresh_table(win)
     refresh_pythons(win)
 
@@ -73,8 +74,7 @@ def refresh_table(win, select=None):
             cell = QTableWidgetItem(text)
             cell.setToolTip(text)
             if chosen:
-                cell.setBackground(QColor("#dff3e3"))
-                cell.setForeground(QColor("#1b5e20"))
+                mark_ok(cell)
             t.setItem(r, c, cell)
     row = next((r for r, p in enumerate(win.venvs) if same(p, prev)), 0 if win.venvs else -1)
     t.setCurrentCell(row, 0 if row >= 0 else -1)
@@ -84,7 +84,7 @@ def refresh_table(win, select=None):
 
 def add_venv(win, path, text):
     win.venvs.append(path)
-    vn.save_list(win.venvs)
+    venv_store.save_list(win.venvs)
     refresh_table(win, select=path)
     win.libs.set_busy(False, text)
 
@@ -113,21 +113,10 @@ def on_create(win):
         win.status.setText("Папка уже существует и это не venv.")
     else:
         win.libs.set_busy(True, "Создание venv...")
-        run_async(vn.create, (python, path),
-                  lambda _: add_venv(win, path, "venv создан."),
-                  lambda msg: win.libs.set_busy(False, f"Ошибка: {msg}"))
-
-
-def ask_delete(win, path):
-    """Возвращает "disk", "list" или None (отмена)."""
-    box = QMessageBox(win)
-    box.setWindowTitle("Удаление")
-    box.setText(f"Что сделать с venv?\n{path}")
-    disk = box.addButton("Удалить с диска", QMessageBox.ButtonRole.DestructiveRole)
-    lst = box.addButton("Убрать из списка", QMessageBox.ButtonRole.AcceptRole)
-    box.addButton(QMessageBox.StandardButton.Cancel)
-    box.exec()
-    return {disk: "disk", lst: "list"}.get(box.clickedButton())
+        win.libs.spawn(vn.create, (python, path),
+                       lambda _: add_venv(win, path, "venv создан."),
+                       lambda msg: win.libs.set_busy(False, f"Ошибка: {msg}"),
+                       lambda: win.libs.set_busy(False, "Создание venv отменено."))
 
 
 def on_delete(win):
@@ -135,7 +124,7 @@ def on_delete(win):
     if not path:
         win.status.setText("Выберите venv в списке.")
         return
-    mode = ask_delete(win, path)
+    mode = ask_venv_delete(win, path)
     if not mode:
         return
 
@@ -144,7 +133,7 @@ def on_delete(win):
             win.chosen = None
             win.libs.load(None)
         win.venvs = [v for v in win.venvs if not same(v, path)]
-        vn.save_list(win.venvs)
+        venv_store.save_list(win.venvs)
         refresh_table(win)
         win.libs.set_busy(False, text)
 

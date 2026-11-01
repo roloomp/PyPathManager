@@ -1,8 +1,8 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
-from gui.handlers import python_handlers as py
-from gui.libs_panel import LibsPanel
-from gui.widgets import make_label, make_button, make_table, toolbar
+from pypath.gui.handlers import path_handlers as py
+from pypath.gui.panels.libs_panel import LibsPanel
+from pypath.gui.widgets import make_label, make_button, make_table, toolbar
 
 
 class PathPage(QWidget):
