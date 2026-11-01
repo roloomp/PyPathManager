@@ -49,6 +49,11 @@ def on_confirm(win):
         return
     try:
         set_active(item["path"], win.items)
+    except PermissionError:
+        QMessageBox.critical(win, "Ошибка", "Python есть в системном PATH. "
+                                            "Для его изменения перезапустите программу от имени администратора "
+                                            "(Файл → Перезапустить от администратора).")
+        return
     except OSError as e:
         QMessageBox.critical(win, "Ошибка", f"Не удалось изменить PATH:\n{e}")
         return

@@ -26,5 +26,5 @@ class PathPage(QWidget):
         layout.addWidget(make_label("Версия Python", 15))
         layout.addWidget(self.python_table, 1)
         layout.addLayout(toolbar([], [self.py_update, self.fin_confirm]))
-        layout.addWidget(make_label("Библиотеки", 15))
+        layout.addLayout(self.libs.header("Библиотеки"))
         layout.addWidget(self.libs, 3)

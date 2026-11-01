@@ -1,6 +1,8 @@
 import json
 import subprocess
 
+PROTECTED = {"pip", "setuptools", "wheel"}  # без них интерпретатор перестаёт ставить пакеты
+
 
 def run(cmd, timeout):
     try:
@@ -46,3 +48,23 @@ def install_from_file(exe, path):
 
 def freeze(exe):
     return _pip(exe, ["freeze"], 60)
+
+
+def get_versions(exe, name):
+    out = _pip(exe, ["index", "versions", name], 60)
+    for line in out.splitlines():
+        if line.startswith("Available versions:"):
+            return [v.strip() for v in line.partition(":")[2].split(",") if v.strip()]
+    return []
+
+
+def get_required_by(exe, names):
+    """{имя: [пакеты, которым он нужен]} по данным pip show."""
+    out = _pip(exe, ["show", *names], 60)
+    result, name = {}, None
+    for line in out.splitlines():
+        if line.startswith("Name:"):
+            name = line.partition(":")[2].strip()
+        elif line.startswith("Required-by:") and name:
+            result[name] = [x.strip() for x in line.partition(":")[2].split(",") if x.strip()]
+    return result

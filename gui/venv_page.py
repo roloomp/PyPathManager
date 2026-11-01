@@ -48,6 +48,6 @@ class VenvPage(QWidget):
         layout.addWidget(self.venv_table, 1)
         layout.addLayout(toolbar([self.create_btn, self.add_btn, self.delete_btn],
                                  [self.py_combo, self.change_btn, self.select_btn]))
-        layout.addWidget(make_label("Библиотеки", 15))
+        layout.addLayout(self.libs.header("Библиотеки"))
         layout.addWidget(self.libs, 3)
         layout.addLayout(run_row)

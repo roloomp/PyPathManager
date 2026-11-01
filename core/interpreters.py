@@ -1,4 +1,5 @@
 import os
+import re
 import winreg
 
 from core.utils import norm
@@ -61,10 +62,15 @@ def get_from_registry():
     return list(found.values())
 
 
+def version_key(tag):
+    m = re.match(r"(\d+)\.(\d+)", tag)
+    return (int(m[1]), int(m[2]), tag) if m else (0, 0, tag)
+
+
 def get_all():
     items = get_from_registry()
     active = get_active_from_registry()
     active = norm(active) if active else None
     for item in items:
         item["active"] = norm(item["path"]) == active
-    return sorted(items, key=lambda x: x["version"], reverse=True)
+    return sorted(items, key=lambda x: version_key(x["version"]), reverse=True)

@@ -18,6 +18,25 @@ def setup(win):
     refresh_pythons(win)
 
 
+def refresh(win):
+    refresh_pythons(win)
+    refresh_table(win)
+    win.libs.reload()
+
+
+def restore_chosen(win, path):
+    """Возвращает выбор venv с прошлого запуска; библиотеки загрузятся при открытии страницы."""
+    saved = next((v for v in win.venvs if path and same(v, path)), None)
+    if saved and os.path.isfile(vn.python_of(saved)):
+        win.chosen = saved
+        refresh_table(win, select=saved)
+
+
+def ensure_libs(win):
+    if win.chosen and not win.libs.exe:
+        win.libs.load(vn.python_of(win.chosen))
+
+
 def current_path(win):
     row = win.venv_table.currentRow()
     return win.venvs[row] if 0 <= row < len(win.venvs) else None

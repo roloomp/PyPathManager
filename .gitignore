@@ -1,4 +1,3 @@
-path_backup.txt
 venv/
 .venv/
 .idea
@@ -222,3 +221,4 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 venvs.json
+settings.ini
