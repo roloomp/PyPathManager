@@ -42,6 +42,13 @@ def install_from_file(exe, path, token=None):
     _pip(exe, ["install", "-r", path], T_INSTALL, token)
 
 
+def install_single(exe, requirement, token=None):
+    """Ставит одну строку из pip freeze без разрешения зависимостей (они уже есть в том же списке).
+    Короткие таймаут и число повторов, чтобы при недоступной сети не ждать на каждом пакете."""
+    spec = ["-e", requirement[3:].strip()] if requirement.startswith("-e ") else [requirement]
+    _pip(exe, ["install", "--no-deps", "--retries", "1", "--timeout", "15", *spec], T_INSTALL, token)
+
+
 def freeze(exe, token=None):
     return _pip(exe, ["freeze"], T_QUICK, token)
 

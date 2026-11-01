@@ -4,11 +4,9 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSt
                              QButtonGroup, QMessageBox, QProgressBar)
 from pypath.config.paths import SETTINGS_FILE
 from pypath.gui.dialogs.help import show_docs, show_about
-from pypath.gui.handlers import path_handlers as py
-from pypath.gui.handlers import venv_handlers as vh
 from pypath.gui.pages.path_page import PathPage
 from pypath.gui.pages.venv_page import VenvPage
-from pypath.gui.widgets import make_label, make_button
+from pypath.gui.widgets import MARGIN, make_label, make_button
 from pypath.system.admin import is_admin, restart_as_admin
 
 
@@ -16,13 +14,20 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PyPath Manager")
-        self.setMinimumSize(730, 570)
+        self.setMinimumHeight(560)
+        self.resize(900, 700)  # минимальную ширину задаёт содержимое, кнопки не обрезаются
         self.settings = QSettings(SETTINGS_FILE, QSettings.Format.IniFormat)
 
-        self.status = make_label("", 10)
-        self.status.setWordWrap(True)
-        self.path_page = PathPage(self.status)
-        self.venv_page = VenvPage(self.status)
+        # у каждой страницы своя строка статуса: сообщения одной страницы не должны висеть на другой
+        self.status_stack = QStackedWidget()
+        statuses = []
+        for _ in range(2):
+            label = make_label("", 10)
+            label.setWordWrap(True)
+            self.status_stack.addWidget(label)
+            statuses.append(label)
+        self.path_page = PathPage(statuses[0])
+        self.venv_page = VenvPage(statuses[1])
         self.stack = QStackedWidget()
         self.stack.addWidget(self.path_page)
         self.stack.addWidget(self.venv_page)
@@ -49,20 +54,21 @@ class MainWindow(QMainWindow):
             page.libs.busy_changed.connect(self.update_progress)
 
         bottom = QHBoxLayout()
-        bottom.addWidget(self.status, 1)
+        bottom.addWidget(self.status_stack, 1)
         bottom.addWidget(self.progress)
 
         central = QWidget()
         root = QVBoxLayout(central)
+        root.setContentsMargins(MARGIN, MARGIN, MARGIN, 8)
+        root.setSpacing(8)
         root.addLayout(top)
         root.addWidget(self.stack, 1)
         root.addLayout(bottom)
         self.setCentralWidget(central)
         self.create_menu()
 
-        vh.setup(self.venv_page)
-        vh.restore_chosen(self.venv_page, self.settings.value("chosen_venv", ""))
-        py.refresh(self.path_page)
+        self.venv_page.restore_chosen(self.settings.value("chosen_venv", ""))
+        self.path_page.refresh()
 
     def create_menu(self):
         file_menu = self.menuBar().addMenu("Файл")
@@ -108,10 +114,7 @@ class MainWindow(QMainWindow):
         page = self.stack.currentWidget()
         if page.libs.busy:
             return
-        if page is self.path_page:
-            py.refresh(page)
-        else:
-            vh.refresh(page)
+        page.refresh()
 
     def focus_search(self):
         search = self.stack.currentWidget().libs.search
@@ -120,20 +123,19 @@ class MainWindow(QMainWindow):
 
     def restart_as_admin(self):
         if any(p.libs.busy for p in (self.path_page, self.venv_page)):
-            self.status.setText("Дождитесь окончания операции.")
+            self.status_stack.currentWidget().setText("Дождитесь окончания операции.")
             return
         self.save_settings()
         if restart_as_admin():
             self.close()
         else:
-            self.status.setText("Перезапуск отменён.")
+            self.status_stack.currentWidget().setText("Перезапуск отменён.")
 
     def show_page(self, index):
         (self.path_button, self.venv_button)[index].setChecked(True)
         self.stack.setCurrentIndex(index)
-        if index == 1:
-            vh.refresh_pythons(self.venv_page)
-            vh.ensure_libs(self.venv_page)
+        self.status_stack.setCurrentIndex(index)
+        self.stack.widget(index).on_shown()
 
     def save_settings(self):
         self.settings.setValue("chosen_venv", self.venv_page.chosen or "")
@@ -146,7 +148,9 @@ class MainWindow(QMainWindow):
             if answer != QMessageBox.StandardButton.Yes:
                 event.ignore()
                 return
-        for p in pages:
-            p.libs.abort()  # иначе pip продолжит работать после закрытия окна
+        # иначе pip продолжит работать после закрытия окна; ждём, пока процессы будут убиты
+        for task in [p.libs.abort() for p in pages]:
+            if task:
+                task.wait(10)  # отмена смены Python откатывает изменения, это может занять время
         self.save_settings()
         super().closeEvent(event)

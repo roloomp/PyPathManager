@@ -2,6 +2,9 @@ from PyQt6.QtGui import QColor, QFont
 from PyQt6.QtWidgets import QLabel, QPushButton, QTableWidget, QHeaderView, QAbstractItemView, QHBoxLayout
 
 BTN_H = 33
+BTN_MIN_W = 96
+MARGIN = 12      # поля окна
+SECTION_GAP = 14  # промежуток между разделами страницы
 OK_BG, OK_FG = "#dff3e3", "#1b5e20"      # активный / выбранный
 WARN_BG, WARN_FG = "#fff3cd", "#7a5b00"  # есть обновление
 
@@ -27,12 +30,13 @@ def make_label(text, size):
 def make_button(text, handler):
     btn = QPushButton(text)
     btn.setMinimumHeight(BTN_H)
+    btn.setMinimumWidth(BTN_MIN_W)
     btn.clicked.connect(lambda: handler())
     return btn
 
 
-def make_table(headers, stretch_col, selectable):
-    t = QTableWidget(0, len(headers))
+def setup_table(t, headers, stretch_col, selectable):
+    """Единый вид таблиц: применяется и к обычной QTableWidget, и к её наследникам."""
     t.setHorizontalHeaderLabels(headers)
     t.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
     t.verticalHeader().setVisible(False)
@@ -46,10 +50,16 @@ def make_table(headers, stretch_col, selectable):
     for c in range(len(headers)):
         h.setSectionResizeMode(c, QHeaderView.ResizeMode.Stretch if c == stretch_col
                                else QHeaderView.ResizeMode.ResizeToContents)
+
+
+def make_table(headers, stretch_col, selectable):
+    t = QTableWidget(0, len(headers))
+    setup_table(t, headers, stretch_col, selectable)
     return t
 
 
 def toolbar(left, right):
+    """Ряд кнопок с равными зазорами: left прижаты влево, right вправо."""
     row = QHBoxLayout()
     row.setSpacing(8)
     for b in left:
