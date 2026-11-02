@@ -1,12 +1,13 @@
 from PyQt6.QtCore import QSettings
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QActionGroup
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QStackedWidget,
-                             QButtonGroup, QMessageBox, QProgressBar)
+                             QApplication, QButtonGroup, QMessageBox, QProgressBar)
 from pypath.config.paths import SETTINGS_FILE
+from pypath.gui import theme
 from pypath.gui.dialogs.help import show_docs, show_about
 from pypath.gui.pages.path_page import PathPage
 from pypath.gui.pages.venv_page import VenvPage
-from pypath.gui.widgets import MARGIN, make_label, make_button
+from pypath.gui.widgets import MARGIN, make_label, make_button, recolor
 from pypath.system.admin import is_admin, restart_as_admin
 
 
@@ -18,6 +19,8 @@ class MainWindow(QMainWindow):
         self.setMinimumHeight(560)
         self.resize(900, 700)
         self.settings = QSettings(SETTINGS_FILE, QSettings.Format.IniFormat)
+        self.theme_mode = theme.valid(self.settings.value("theme", theme.DEFAULT))
+        theme.apply(self.theme_mode)
 
         self.status_stack = QStackedWidget()
         statuses = []
@@ -66,6 +69,7 @@ class MainWindow(QMainWindow):
         root.addLayout(bottom)
         self.setCentralWidget(central)
         self.create_menu()
+        QApplication.styleHints().colorSchemeChanged.connect(self.on_scheme_changed)
 
         self.venv_page.restore_chosen(self.settings.value("chosen_venv", ""))
         self.path_page.refresh()
@@ -98,6 +102,17 @@ class MainWindow(QMainWindow):
             action.triggered.connect(handler)
             view_menu.addAction(action)
 
+        view_menu.addSeparator()
+        theme_menu = view_menu.addMenu("Тема")
+        theme_group = QActionGroup(self)
+        for mode, title in theme.MODES:
+            action = QAction(title, self)
+            action.setCheckable(True)
+            action.setChecked(mode == self.theme_mode)
+            action.triggered.connect(lambda _, m=mode: self.set_theme(m))
+            theme_group.addAction(action)
+            theme_menu.addAction(action)
+
         help_menu = self.menuBar().addMenu("Справка")
         docs_action = QAction("Документация", self)
         docs_action.setShortcut("F1")
@@ -106,6 +121,26 @@ class MainWindow(QMainWindow):
         about_action.triggered.connect(lambda: show_about(self))
         help_menu.addAction(docs_action)
         help_menu.addAction(about_action)
+
+    def set_theme(self, mode):
+        """Включает тему и запоминает выбор в настройках."""
+        self.theme_mode = mode
+        theme.apply(mode)
+        self.settings.setValue("theme", mode)
+        self.settings.sync()
+        self.recolor_tables()
+
+    def on_scheme_changed(self):
+        """Обновляет палитру и подсветку таблиц, когда изменилась тема системы."""
+        theme.refresh()
+        self.recolor_tables()
+
+    def recolor_tables(self):
+        """Перекрашивает подсвеченные ячейки всех таблиц под текущую тему."""
+        for page in (self.path_page, self.venv_page):
+            recolor(page.libs.table)
+        recolor(self.path_page.python_table)
+        recolor(self.venv_page.venv_table)
 
     def update_progress(self):
         """Показывает индикатор, пока на любой странице идёт операция или проверка обновлений."""
