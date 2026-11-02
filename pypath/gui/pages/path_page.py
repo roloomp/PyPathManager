@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import QMessageBox, QTableWidgetItem, QVBoxLayout
 from pypath.gui.pages.base import Page
 from pypath.gui.panels.libs_panel import LibsPanel
 from pypath.gui.widgets import SECTION_GAP, make_button, make_label, make_table, mark_ok, toolbar
-from pypath.services.interpreters import get_all
+from pypath.services.interpreters import get_active_from_registry, get_all
 from pypath.services import path_env
 
 
@@ -20,6 +20,10 @@ class PathPage(Page):
         self.python_table.setWordWrap(False)
         self.python_table.setTextElideMode(Qt.TextElideMode.ElideMiddle)
         self.python_table.currentCellChanged.connect(lambda row, *_: self.show_libs(row))
+        self.hint = make_label("", 9)
+        self.hint.setWordWrap(True)
+        self.hint.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.hint.hide()
         self.refresh_btn = make_button("Перечитать", self.refresh)
         self.activate_btn = make_button("Сделать активным", self.on_confirm)
         self.undo_btn = make_button("Откатить PATH", self.on_undo)
@@ -31,6 +35,7 @@ class PathPage(Page):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(make_label("Версия Python", 15))
         layout.addWidget(self.python_table, 1)
+        layout.addWidget(self.hint)
         layout.addLayout(toolbar([self.undo_btn], [self.refresh_btn, self.activate_btn]))
         layout.addSpacing(SECTION_GAP)
         layout.addLayout(self.libs.header("Библиотеки"))
@@ -58,6 +63,7 @@ class PathPage(Page):
                     mark_ok(cell)
                 t.setItem(r, c, cell)
         t.blockSignals(False)
+        self.show_hint()
         if not self.items:
             self.libs.load(None)
             self.say("Python не найден.")
@@ -69,6 +75,12 @@ class PathPage(Page):
         t.setCurrentCell(row, 0)
         t.blockSignals(False)
         self.show_libs(row)
+
+    def show_hint(self):
+        """Если ни одна строка не активна, показывает под таблицей первый python.exe из PATH."""
+        found = None if any(i["active"] for i in self.items) else get_active_from_registry()
+        self.hint.setText(f"Первый python.exe в PATH: {found}. Его нет в списке выше." if found else "")
+        self.hint.setVisible(bool(found))
 
     def update_undo_button(self):
         """Включает кнопку отката, если есть снимок PATH, и обновляет её подсказку."""
