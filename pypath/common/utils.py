@@ -3,6 +3,7 @@ import re
 
 
 def norm(p):
+    """Приводит путь к нормальному виду для сравнения: без лишних разделителей и в нижнем регистре."""
     return os.path.normcase(os.path.normpath(p))
 
 

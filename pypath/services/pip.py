@@ -4,41 +4,48 @@ import json
 from pypath.common.utils import canon
 from pypath.system.processes import run
 
-PROTECTED = {"pip", "setuptools", "wheel"}  # без них интерпретатор перестаёт ставить пакеты
+PROTECTED = {"pip", "setuptools", "wheel"}
 
-T_QUICK = 60       # список, показ информации, версии
-T_OUTDATED = 120   # проверка обновлений ходит в сеть
+T_QUICK = 60
+T_OUTDATED = 120
 T_UNINSTALL = 300
 T_INSTALL = 600
 
 
 def _pip(exe, args, timeout, token):
+    """Запускает pip выбранного интерпретатора и возвращает его вывод."""
     return run([exe, "-m", "pip", *args, "--disable-pip-version-check"], timeout, token)
 
 
 def get_libs(exe, token=None):
+    """Возвращает установленные библиотеки, отсортированные по имени."""
     out = _pip(exe, ["list", "--format=json"], T_QUICK, token)
     return sorted(json.loads(out), key=lambda x: x["name"].lower())
 
 
 def update_libs(exe, names, token=None):
+    """Обновляет библиотеки до последних версий."""
     _pip(exe, ["install", "--upgrade", *names], T_INSTALL, token)
 
 
 def delete_libs(exe, names, token=None):
+    """Удаляет библиотеки без запроса подтверждения у pip."""
     _pip(exe, ["uninstall", "-y", *names], T_UNINSTALL, token)
 
 
 def install_libs(exe, names, token=None):
+    """Устанавливает библиотеки (имена могут содержать версию)."""
     _pip(exe, ["install", *names], T_INSTALL, token)
 
 
 def get_outdated(exe, token=None):
+    """Возвращает {каноническое имя: последняя версия} для устаревших библиотек."""
     out = _pip(exe, ["list", "--outdated", "--format=json"], T_OUTDATED, token)
     return {canon(x["name"]): x["latest_version"] for x in json.loads(out)}
 
 
 def install_from_file(exe, path, token=None):
+    """Устанавливает библиотеки из файла requirements."""
     _pip(exe, ["install", "-r", path], T_INSTALL, token)
 
 
@@ -50,10 +57,12 @@ def install_single(exe, requirement, token=None):
 
 
 def freeze(exe, token=None):
+    """Возвращает вывод pip freeze."""
     return _pip(exe, ["freeze"], T_QUICK, token)
 
 
 def get_versions(exe, name, token=None):
+    """Возвращает список доступных версий библиотеки."""
     out = _pip(exe, ["index", "versions", name], T_QUICK, token)
     for line in out.splitlines():
         if line.startswith("Available versions:"):

@@ -3,23 +3,26 @@ from PyQt6.QtWidgets import QLabel, QPushButton, QTableWidget, QHeaderView, QAbs
 
 BTN_H = 33
 BTN_MIN_W = 96
-MARGIN = 12      # поля окна
-SECTION_GAP = 14  # промежуток между разделами страницы
-OK_BG, OK_FG = "#dff3e3", "#1b5e20"      # активный / выбранный
-WARN_BG, WARN_FG = "#fff3cd", "#7a5b00"  # есть обновление
+MARGIN = 12
+SECTION_GAP = 14
+OK_BG, OK_FG = "#dff3e3", "#1b5e20"
+WARN_BG, WARN_FG = "#fff3cd", "#7a5b00"
 
 
 def mark_ok(cell):
+    """Красит ячейку в цвета успеха."""
     cell.setBackground(QColor(OK_BG))
     cell.setForeground(QColor(OK_FG))
 
 
 def mark_warn(cell):
+    """Красит ячейку в цвета предупреждения."""
     cell.setBackground(QColor(WARN_BG))
     cell.setForeground(QColor(WARN_FG))
 
 
 def make_label(text, size):
+    """Создаёт надпись с заданным размером шрифта."""
     label = QLabel(text)
     font = QFont()
     font.setPointSize(size)
@@ -28,6 +31,7 @@ def make_label(text, size):
 
 
 def make_button(text, handler):
+    """Создаёт кнопку стандартного размера, вызывающую handler без аргументов."""
     btn = QPushButton(text)
     btn.setMinimumHeight(BTN_H)
     btn.setMinimumWidth(BTN_MIN_W)
@@ -53,6 +57,7 @@ def setup_table(t, headers, stretch_col, selectable):
 
 
 def make_table(headers, stretch_col, selectable):
+    """Создаёт таблицу с заголовками и общим оформлением."""
     t = QTableWidget(0, len(headers))
     setup_table(t, headers, stretch_col, selectable)
     return t

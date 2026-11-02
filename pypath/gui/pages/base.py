@@ -5,11 +5,13 @@ class Page(QWidget):
     """Страница главного окна: своя строка статуса и панель библиотек (self.libs)."""
 
     def __init__(self, status):
+        """Запоминает строку статуса страницы; панель библиотек создаёт наследник."""
         super().__init__()
         self.status = status
-        self.libs = None  # LibsPanel, создаётся в наследнике
+        self.libs = None
 
     def say(self, text):
+        """Выводит текст в строку статуса страницы."""
         self.status.setText(text)
 
     def refresh(self):

@@ -6,6 +6,7 @@ from pypath.system import registry
 
 
 def get_active_from_registry():
+    """Возвращает первый python.exe, который находится по PATH, или None."""
     paths = []
     for where in (registry.MACHINE, registry.USER):
         try:
@@ -22,6 +23,7 @@ def get_active_from_registry():
 
 
 def get_from_registry():
+    """Возвращает список установленных интерпретаторов из реестра без повторов."""
     found = {}
     for tag, exe in registry.python_installs():
         if os.path.isfile(exe):
@@ -30,6 +32,7 @@ def get_from_registry():
 
 
 def get_all():
+    """Возвращает интерпретаторы с отметкой активного, новейшие версии первыми."""
     items = get_from_registry()
     active = get_active_from_registry()
     active = norm(active) if active else None

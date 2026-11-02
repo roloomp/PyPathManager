@@ -16,25 +16,27 @@ MAX_SNAPSHOTS = 20
 @dataclass
 class Snapshot:
     id: str
-    time: str                # когда сделана смена, для показа пользователю
-    exe: str                 # какой интерпретатор делали активным
-    before: dict             # {"user": [значение, тип], "machine": [значение, тип]} до смены
-    machine_changed: bool    # трогали ли системный PATH (иначе при откате его не нужно писать)
-    after: dict | None = None  # то, что записали; по нему видно, менял ли PATH кто-то ещё
+    time: str
+    exe: str
+    before: dict
+    machine_changed: bool
+    after: dict | None = None
 
     @classmethod
     def new(cls, exe, before, machine_changed):
+        """Создаёт снимок с уникальным идентификатором по текущему времени."""
         now = time.time()
         stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(now))
         micros = int(now * 1_000_000) % 1_000_000
         snap_id = f"{stamp}-{micros:06d}"
-        while os.path.exists(_file(snap_id)) and micros < 999_999:  # смены не должны затирать друг друга
+        while os.path.exists(_file(snap_id)) and micros < 999_999:
             micros += 1
             snap_id = f"{stamp}-{micros:06d}"
         return cls(snap_id, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now)), exe, before, machine_changed)
 
 
 def _file(snap_id):
+    """Возвращает путь к файлу снимка по его идентификатору."""
     return os.path.join(PATH_HISTORY_DIR, snap_id + ".json")
 
 
@@ -47,6 +49,7 @@ def save(snap):
 
 
 def discard(snap):
+    """Удаляет файл снимка."""
     try:
         os.remove(_file(snap.id))
     except OSError as e:
@@ -69,6 +72,7 @@ def latest():
 
 
 def _prune():
+    """Удаляет самые старые снимки, оставляя не больше MAX_SNAPSHOTS."""
     try:
         names = sorted(n for n in os.listdir(PATH_HISTORY_DIR) if n.endswith(".json"))
         for old in names[:-MAX_SNAPSHOTS]:

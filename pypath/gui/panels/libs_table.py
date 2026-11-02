@@ -9,10 +9,12 @@ class Item(QTableWidgetItem):
     """Ячейка с собственным ключом сортировки (версии сравниваются как числа)."""
 
     def __init__(self, text, key=None):
+        """Создаёт ячейку; ключ сортировки по умолчанию - текст в нижнем регистре."""
         super().__init__(text)
         self.key = text.lower() if key is None else key
 
     def __lt__(self, other):
+        """Сравнивает ячейки по ключу сортировки."""
         return self.key < other.key
 
 
@@ -23,15 +25,14 @@ class LibsTable(QTableWidget):
     COLUMNS = ["Библиотека", "Версия", "Последняя версия"]
 
     def __init__(self):
+        """Создаёт таблицу с заголовками и подключает сортировку по клику на заголовок."""
         super().__init__(0, len(self.COLUMNS))
         setup_table(self, self.COLUMNS, 0, False)
         self._query = ""
-        self._sort = None  # (столбец, порядок) последней сортировки по клику на заголовок
+        self._sort = None
         header = self.horizontalHeader()
         header.setSectionsClickable(True)
         header.sectionClicked.connect(self._on_sort)
-
-    # ---- наполнение ----
 
     def fill(self, libs):
         """libs: список {"name", "version"} из pip. Последняя версия пока неизвестна ("...")."""
@@ -64,20 +65,19 @@ class LibsTable(QTableWidget):
         self.setUpdatesEnabled(True)
         self.resort()
 
-    # ---- фильтр ----
-
     def set_filter(self, text):
+        """Задаёт строку поиска по имени и скрывает неподходящие строки."""
         self._query = canon(text.strip())
         self._apply_filter()
 
     def _apply_filter(self):
+        """Скрывает строки, имя которых не содержит строку поиска."""
         for r in range(self.rowCount()):
             hidden = bool(self._query) and self._query not in canon(self.item(r, 0).text())
             self.setRowHidden(r, hidden)
 
-    # ---- сортировка ----
-
     def _on_sort(self, col):
+        """Сортирует по столбцу, повторный клик меняет порядок на обратный."""
         order = Qt.SortOrder.AscendingOrder
         if self._sort and self._sort[0] == col and self._sort[1] == order:
             order = Qt.SortOrder.DescendingOrder
@@ -93,9 +93,7 @@ class LibsTable(QTableWidget):
         header = self.horizontalHeader()
         header.setSortIndicator(col, order)
         header.setSortIndicatorShown(True)
-        self._apply_filter()  # скрытые строки привязаны к позиции, после сортировки пересчитываем
-
-    # ---- выбор ----
+        self._apply_filter()
 
     def visible_rows(self):
         """Строки, видимые при текущем поиске: все операции работают только с ними."""
@@ -107,6 +105,7 @@ class LibsTable(QTableWidget):
                 for r in self.visible_rows() if self.item(r, 0).checkState() == Qt.CheckState.Checked]
 
     def checked(self):
+        """Возвращает имена отмеченных видимых библиотек."""
         return [name for name, _, _ in self.checked_rows()]
 
     def toggle_all(self):
@@ -118,5 +117,6 @@ class LibsTable(QTableWidget):
             self.item(r, 0).setCheckState(state)
 
     def version_of(self, name):
+        """Возвращает установленную версию библиотеки по имени или None."""
         return next((self.item(r, 1).text() for r in range(self.rowCount()) if self.item(r, 0).text() == name), None)
 

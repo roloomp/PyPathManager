@@ -9,6 +9,7 @@ log = logging.getLogger(__name__)
 
 
 def load_list():
+    """Читает список venv и оставляет только существующие."""
     try:
         with open(VENVS_FILE, encoding="utf-8") as f:
             paths = json.load(f)
@@ -21,6 +22,7 @@ def load_list():
 
 
 def save_list(paths):
+    """Сохраняет список venv в файл."""
     try:
         with open(VENVS_FILE, "w", encoding="utf-8") as f:
             json.dump(paths, f, ensure_ascii=False, indent=2)

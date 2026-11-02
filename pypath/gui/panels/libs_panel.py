@@ -14,17 +14,17 @@ class LibsPanel(QWidget):
     """Библиотеки выбранного интерпретатора (self.exe): таблица, кнопки и операции pip.
     Таблица живёт в LibsTable, запуск и отмена фоновых задач в TaskSlot, здесь только сценарии."""
 
-    busy_changed = pyqtSignal()  # изменилось self.busy или self.checking
+    busy_changed = pyqtSignal()
 
     def __init__(self, status, no_exe_text, locked=()):
         """locked: виджеты страницы, которые блокируются на время операции."""
         super().__init__()
-        self.busy = False      # выполняется загрузка или операция
-        self.checking = False  # в фоне проверяются последние версии
+        self.busy = False
+        self.checking = False
         self.status = status
         self.no_exe_text = no_exe_text
         self.exe = None
-        self.token = 0         # номер загрузки: результаты устаревших загрузок игнорируются
+        self.token = 0
         self.locked = list(locked)
         self.slot = TaskSlot(self, status)
         self.table = LibsTable()
@@ -46,7 +46,6 @@ class LibsPanel(QWidget):
         import_.setToolTip("Установить библиотеки из requirements.txt")
         self.select_all_btn = make_button("Выбрать всё", self.table.toggle_all)
         self.select_all_btn.setToolTip("Отметить или снять все видимые (найденные) библиотеки")
-        # кнопка отмены (slot.button) не входит в self.buttons: set_busy её не блокирует
         self.buttons = [install, update, version, delete, export, import_, self.select_all_btn]
 
         layout = QVBoxLayout(self)
@@ -65,19 +64,19 @@ class LibsPanel(QWidget):
         row.addWidget(self.search)
         return row
 
-    # ---- фоновые задачи ----
-
     def spawn(self, fn, args, on_ok, on_err, on_cancel, confirm=None):
+        """Запускает отменяемую фоновую задачу через TaskSlot."""
         self.slot.spawn(fn, args, on_ok, on_err, on_cancel, confirm)
 
     def abort(self):
+        """Прерывает текущую задачу панели и возвращает её."""
         return self.slot.abort()
 
     def release_exe(self):
         """Останавливает всё, что держит интерпретатор панели (загрузку, проверку обновлений):
         перед удалением или пересозданием venv его файлы не должны быть заняты."""
         task = self.abort()
-        self.token += 1  # поздние ответы прерванных задач игнорируются
+        self.token += 1
         if self.checking:
             self.checking = False
             self.busy_changed.emit()
@@ -89,6 +88,7 @@ class LibsPanel(QWidget):
         return self.busy and (self.slot.task is None or self.slot.risky())
 
     def set_busy(self, busy, text=None, lock_others=True):
+        """Блокирует или разблокирует кнопки и связанные виджеты и выводит текст статуса."""
         self.busy = busy
         self.busy_changed.emit()
         for b in self.buttons:
@@ -99,19 +99,20 @@ class LibsPanel(QWidget):
             self.status.setText(text)
 
     def need_exe(self):
+        """Проверяет, что интерпретатор выбран; иначе выводит подсказку в статус."""
         if self.exe:
             return True
         self.status.setText(self.no_exe_text)
         return False
 
-    # ---- загрузка списка ----
-
     def reload(self):
+        """Перечитывает библиотеки текущего интерпретатора, если нет активной операции."""
         if self.exe and not self.busy:
             self.load(self.exe)
 
     def load(self, exe, note=""):
-        self.abort()  # предыдущая загрузка или проверка обновлений уже не нужна
+        """Загружает список библиотек интерпретатора exe; None очищает таблицу."""
+        self.abort()
         self.token += 1
         token = self.token
         self.checking = False
@@ -120,7 +121,6 @@ class LibsPanel(QWidget):
         if not exe:
             self.set_busy(False)
             return
-        # при загрузке остальные виджеты не блокируются: смена выбора отменяет устаревший результат
         self.set_busy(True, "Загрузка библиотек...", lock_others=False)
         self.spawn(get_libs, (exe,),
                    lambda libs: self.on_loaded(token, exe, libs, note),
@@ -128,19 +128,20 @@ class LibsPanel(QWidget):
                    lambda: self.on_load_cancelled(token))
 
     def on_loaded(self, token, exe, libs, note):
+        """Заполняет таблицу и запускает проверку обновлений, если загрузка не устарела."""
         if token != self.token:
             return
         self.table.fill(libs)
         base = f"{note}Библиотек: {len(libs)}"
         self.checking = True
         self.set_busy(False, base + ". Проверка обновлений...")
-        # последние версии грузятся отдельно (нужна сеть, может быть долго)
         self.spawn(get_outdated, (exe,),
                    lambda latest: self.on_latest(token, latest, base),
                    lambda msg: self.on_latest_failed(token, base),
                    lambda: self.on_latest_failed(token, base, "Проверка обновлений отменена."))
 
     def on_latest(self, token, latest, base):
+        """Показывает последние версии библиотек, если загрузка не устарела."""
         if token != self.token:
             return
         self.checking = False
@@ -149,6 +150,7 @@ class LibsPanel(QWidget):
         self.status.setText(f"{base}, устарело: {len(latest)}")
 
     def on_latest_failed(self, token, base, reason="Не удалось проверить обновления."):
+        """Отмечает, что проверить обновления не удалось, если загрузка не устарела."""
         if token != self.token:
             return
         self.checking = False
@@ -157,28 +159,29 @@ class LibsPanel(QWidget):
         self.status.setText(f"{base}. {reason}")
 
     def on_failed(self, token, msg):
+        """Выводит ошибку получения списка библиотек, если загрузка не устарела."""
         if token != self.token:
             return
         self.set_busy(False, f"Не удалось получить библиотеки: {msg}")
 
     def on_load_cancelled(self, token):
+        """Сообщает об отмене загрузки, если загрузка не устарела."""
         if token != self.token:
             return
         self.set_busy(False, "Загрузка отменена. Обновить: F5.")
 
-    # ---- операции ----
-
     def run_op(self, fn, args, start_text, ok_text):
+        """Запускает операцию pip над интерпретатором и после неё перезагружает список."""
         exe = self.exe
         self.set_busy(True, start_text)
         self.spawn(fn, (exe, *args),
                    lambda _: self.load(exe, ok_text + ". " if ok_text else ""),
                    lambda msg: self.set_busy(False, f"Ошибка: {msg}"),
-                   # прерванная операция могла изменить часть пакетов: показываем реальное состояние
                    lambda: self.load(exe, "Операция отменена. "),
                    confirm=CONFIRM_ENV)
 
     def on_install(self):
+        """Запрашивает имена пакетов и версию и устанавливает их."""
         if not self.need_exe():
             return
         answer = dialogs.ask_install(self)
@@ -194,11 +197,11 @@ class LibsPanel(QWidget):
                     f"Установлено: {', '.join(names)}")
 
     def on_update(self):
+        """Обновляет отмеченные библиотеки, пропуская уже актуальные."""
         if not self.need_exe():
             return
         names, skipped = [], 0
         for name, cur, latest in self.table.checked_rows():
-            # "...": последняя версия неизвестна, обновляем на всякий случай
             if latest in ("...", "—") or latest != cur:
                 names.append(name)
             else:
@@ -211,6 +214,7 @@ class LibsPanel(QWidget):
         self.run_op(update_libs, (names,), f"Обновление: {len(names)} шт...", done)
 
     def on_version(self):
+        """Запрашивает список версий для одной отмеченной библиотеки."""
         if not self.need_exe():
             return
         names = self.table.checked()
@@ -225,6 +229,7 @@ class LibsPanel(QWidget):
                    lambda: self.set_busy(False, "Отменено."))
 
     def pick_version(self, name, versions):
+        """Предлагает выбрать версию из списка и устанавливает её."""
         self.set_busy(False)
         if not versions:
             self.status.setText(f"Версии {name} не найдены.")
@@ -241,6 +246,7 @@ class LibsPanel(QWidget):
                     f"{name}: установлена версия {ver}")
 
     def on_delete(self):
+        """Проверяет зависимости отмеченных библиотек, кроме защищённых, и передаёт на подтверждение."""
         if not self.need_exe():
             return
         checked = self.table.checked()
@@ -251,13 +257,13 @@ class LibsPanel(QWidget):
                                 else "Отметьте библиотеки для удаления.")
             return
         self.set_busy(True, "Проверка зависимостей...")
-        # если проверка не удалась, просто спрашиваем без предупреждения
         self.spawn(get_required_by, (self.exe, names),
                    lambda info: self.confirm_delete(names, skipped, info),
                    lambda msg: self.confirm_delete(names, skipped, {}),
                    lambda: self.set_busy(False, "Отменено."))
 
     def confirm_delete(self, names, skipped, info):
+        """Запрашивает подтверждение и удаляет библиотеки."""
         self.set_busy(False)
         if not dialogs.ask_delete(self, names, info):
             self.status.setText("")
@@ -266,6 +272,7 @@ class LibsPanel(QWidget):
                     f"Удалено библиотек: {len(names)}" + (f", пропущено защищённых: {skipped}" if skipped else ""))
 
     def on_export(self):
+        """Записывает отмеченные библиотеки в файл requirements.txt."""
         rows = self.table.checked_rows()
         if not rows:
             self.status.setText("Отметьте библиотеки для экспорта.")
@@ -283,6 +290,7 @@ class LibsPanel(QWidget):
         self.status.setText(f"Экспортировано библиотек: {len(rows)}")
 
     def on_import(self):
+        """Устанавливает библиотеки из выбранного файла requirements.txt."""
         if not self.need_exe():
             return
         path, _ = QFileDialog.getOpenFileName(self, "Импорт библиотек", "", "requirements.txt (*.txt)")

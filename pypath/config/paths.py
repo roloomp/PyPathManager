@@ -8,8 +8,8 @@ APP_DIR = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "Py
 SETTINGS_FILE = os.path.join(APP_DIR, "settings.ini")
 VENVS_FILE = os.path.join(APP_DIR, "venvs.json")
 LOG_FILE = os.path.join(APP_DIR, "pypath.log")
-BACKUP_DIR = os.path.join(APP_DIR, "backups")  # списки библиотек перед сменой Python у venv
-PATH_HISTORY_DIR = os.path.join(APP_DIR, "path_history")  # снимки PATH перед каждым изменением
+BACKUP_DIR = os.path.join(APP_DIR, "backups")
+PATH_HISTORY_DIR = os.path.join(APP_DIR, "path_history")
 
 
 def ensure():

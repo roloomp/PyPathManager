@@ -19,16 +19,19 @@ class Task(QObject):
     cancelled = pyqtSignal()
 
     def __init__(self, fn, args, cancellable=False):
+        """Запоминает функцию и аргументы и создаёт токен отмены."""
         super().__init__()
         self.fn, self.args, self.cancellable = fn, args, cancellable
         self.token = CancelToken()
-        self.confirm_text = None  # если задан, перед отменой спрашиваем пользователя этим текстом
+        self.confirm_text = None
         self._thread = None
 
     def cancel(self):
+        """Прерывает задачу через токен отмены."""
         self.token.cancel()
 
     def start(self):
+        """Запускает функцию в фоновом потоке."""
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
 
@@ -38,12 +41,14 @@ class Task(QObject):
             self._thread.join(timeout)
 
     def _emit(self, signal, *args):
+        """Отправляет сигнал, игнорируя ошибку, если объект уже удалён."""
         try:
             signal.emit(*args)
         except RuntimeError:
-            pass  # программа закрывается: Qt уже удалил этот объект, слушать результат некому
+            pass
 
     def _run(self):
+        """Выполняет функцию и отправляет результат, отмену или ошибку сигналом."""
         try:
             kwargs = {"token": self.token} if self.cancellable else {}
             result = self.fn(*self.args, **kwargs)
@@ -67,6 +72,7 @@ def run_async(fn, args, on_ok, on_err, on_cancel=None, cancellable=False):
     _running.add(task)
 
     def done(cb, *value):
+        """Убирает задачу из списка работающих и вызывает обработчик."""
         _running.discard(task)
         if cb:
             cb(*value)
@@ -85,8 +91,9 @@ class TaskSlot:
     """Одна текущая отменяемая задача панели и её кнопка «Отмена» (видна, пока задача идёт)."""
 
     def __init__(self, parent, status):
-        self.parent = parent  # для диалога подтверждения
-        self.status = status  # QLabel, куда пишем «Отмена...»
+        """Создаёт слот задачи и скрытую кнопку «Отмена» с клавишей Esc."""
+        self.parent = parent
+        self.status = status
         self.task = None
         self.button = make_button("Отмена", self.on_cancel)
         self.button.setShortcut("Esc")
@@ -95,7 +102,9 @@ class TaskSlot:
     def spawn(self, fn, args, on_ok, on_err, on_cancel, confirm=None):
         """Запускает задачу. confirm: текст вопроса перед отменой (если отмена небезопасна или долгая)."""
         def release(cb):
+            """Оборачивает обработчик так, чтобы после завершения задачи слот освобождался."""
             def inner(*value):
+                """Освобождает слот и скрывает кнопку, если задача ещё текущая, затем вызывает обработчик."""
                 if self.task is task:
                     self.task = None
                     self.button.hide()
@@ -122,12 +131,13 @@ class TaskSlot:
         return self.task is not None and self.task.confirm_text is not None
 
     def on_cancel(self):
+        """Отменяет текущую задачу, при необходимости после подтверждения."""
         task = self.task
         if not task:
             return
         if task.confirm_text and QMessageBox.question(
                 self.parent, "Отмена", task.confirm_text) != QMessageBox.StandardButton.Yes:
             return
-        if task is self.task:  # пока висел вопрос, задача могла завершиться сама
+        if task is self.task:
             self.status.setText("Отмена...")
             task.cancel()

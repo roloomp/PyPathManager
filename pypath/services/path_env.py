@@ -10,11 +10,13 @@ log = logging.getLogger(__name__)
 
 
 def dirs(exe):
+    """Возвращает нормализованные каталоги интерпретатора и его Scripts."""
     d = os.path.dirname(exe)
     return {norm(d), norm(os.path.join(d, "Scripts"))}
 
 
 def _strip(value, known):
+    """Возвращает элементы Path без каталогов известных интерпретаторов."""
     return [p for p in value.split(";") if p and norm(os.path.expandvars(p)) not in known]
 
 
@@ -35,7 +37,6 @@ def set_active(exe, interpreters):
     before = _state()
     user_old, user_typ = before["user"]
     machine_old, machine_typ = before["machine"]
-    # Системный PATH приоритетнее пользовательского: если в нём есть Python, его нужно убрать
     machine_parts = _strip(machine_old, known)
     machine_changed = len(machine_parts) != len([p for p in machine_old.split(";") if p])
     machine_new = ";".join(machine_parts) if machine_changed else machine_old
@@ -43,7 +44,7 @@ def set_active(exe, interpreters):
     user_new = ";".join([d, os.path.join(d, "Scripts")] + _strip(user_old, known))
 
     snap = history.Snapshot.new(exe, before, machine_changed)
-    history.save(snap)  # нет копии, нет и изменений
+    history.save(snap)
     machine_written = False
     try:
         if machine_changed:
@@ -52,7 +53,7 @@ def set_active(exe, interpreters):
         try:
             registry.write_path(registry.USER, user_new, user_typ)
         except OSError:
-            if machine_written:  # не оставляем полуприменённое состояние
+            if machine_written:
                 try:
                     registry.write_path(registry.MACHINE, machine_old, machine_typ)
                     machine_written = False
@@ -60,7 +61,7 @@ def set_active(exe, interpreters):
                     log.error("не удалось вернуть системный PATH после сбоя: %s", e)
             raise
     except Exception:
-        if not machine_written:  # состояние прежнее: снимок не нужен
+        if not machine_written:
             history.discard(snap)
         raise
     snap.after = {"user": [user_new, user_typ], "machine": [machine_new, machine_typ]}

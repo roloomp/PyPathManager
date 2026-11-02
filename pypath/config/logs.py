@@ -12,6 +12,7 @@ def setup():
     logging.basicConfig(level=logging.INFO, handlers=[handler])
 
     def log_unhandled(kind, value, tb):
+        """Пишет необработанное исключение в лог и передаёт его стандартному обработчику."""
         logging.getLogger("pypath").critical("необработанное исключение", exc_info=(kind, value, tb))
         sys.__excepthook__(kind, value, tb)
 

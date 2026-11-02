@@ -28,11 +28,13 @@ class ScriptRow(QWidget):
         row.addWidget(self.run_btn)
 
     def browse(self):
+        """Открывает диалог выбора файла и записывает путь в поле."""
         path, _ = QFileDialog.getOpenFileName(self, "Выберите файл", "", "Python (*.py *.pyw);;Все файлы (*)")
         if path:
             self.edit.setText(os.path.normpath(path))
 
     def run(self):
+        """Запускает указанный файл в выбранном venv."""
         venv = self.get_venv()
         if not venv:
             self.say("Выберите venv.")

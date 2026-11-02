@@ -14,18 +14,21 @@ from pypath.system.processes import open_console, run
 log = logging.getLogger(__name__)
 
 T_VENV = 300
-NO_PROGRESS_LIMIT = 3  # столько пакетов подряд без единого успеха, и поштучную установку прекращаем
+NO_PROGRESS_LIMIT = 3
 
 
 def python_of(path):
+    """Возвращает путь к python.exe внутри venv."""
     return os.path.join(path, "Scripts", "python.exe")
 
 
 def is_venv(path):
+    """Проверяет, что в папке есть файл pyvenv.cfg."""
     return os.path.isfile(os.path.join(path, "pyvenv.cfg"))
 
 
 def cfg_of(path):
+    """Читает pyvenv.cfg в словарь; при ошибке возвращает пустой словарь."""
     result = {}
     try:
         with open(os.path.join(path, "pyvenv.cfg"), encoding="utf-8") as f:
@@ -39,11 +42,13 @@ def cfg_of(path):
 
 
 def version_of(path):
+    """Возвращает версию Python venv или «?»."""
     cfg = cfg_of(path)
     return cfg.get("version") or cfg.get("version_info") or "?"
 
 
 def uses_python(path, python):
+    """Проверяет, создан ли venv на данном интерпретаторе."""
     return norm(cfg_of(path).get("home", "")) == norm(os.path.dirname(python))
 
 
@@ -60,8 +65,8 @@ def create(python, path, token=None):
 
 @dataclass
 class RecreateResult:
-    failed: list = field(default_factory=list)  # строки freeze, которые не удалось поставить
-    backup: str | None = None                   # файл со списком прежних библиотек
+    failed: list = field(default_factory=list)
+    backup: str | None = None
 
 
 def recreate(python, path, token=None):
@@ -73,7 +78,7 @@ def recreate(python, path, token=None):
     try:
         frozen = freeze(python_of(path), token)
     except CommandError:
-        frozen = ""  # прежний venv повреждён: переносить нечего
+        frozen = ""
     requirements = [x.strip() for x in frozen.splitlines() if x.strip() and not x.startswith("#")]
     backup = save_requirements(path, frozen) if requirements else None
 
@@ -112,10 +117,10 @@ def _reinstall(exe, requirements, frozen, token):
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(frozen)
-        install_from_file(exe, tmp, token)  # быстрый путь: всё одной командой
+        install_from_file(exe, tmp, token)
         return []
     except CommandError:
-        pass  # одна библиотека сломала всю установку: пробуем по одной
+        pass
     finally:
         os.remove(tmp)
     failed, installed, streak, last = [], 0, 0, ""
@@ -128,7 +133,7 @@ def _reinstall(exe, requirements, frozen, token):
         except CommandError as e:
             failed.append(line)
             streak, last = streak + 1, str(e)
-            if installed == 0 and streak >= NO_PROGRESS_LIMIT:  # скорее всего, общая причина (сеть)
+            if installed == 0 and streak >= NO_PROGRESS_LIMIT:
                 break
     if installed == 0:
         raise CommandError(f"не удалось установить библиотеки ({last})")
@@ -136,6 +141,7 @@ def _reinstall(exe, requirements, frozen, token):
 
 
 def _rollback(path, parked):
+    """Удаляет новую папку venv и возвращает прежнюю из .old."""
     shutil.rmtree(path, ignore_errors=True)
     try:
         os.replace(parked, path)
@@ -144,6 +150,7 @@ def _rollback(path, parked):
 
 
 def remove(path):
+    """Удаляет папку venv с диска, если это действительно venv."""
     if not os.path.exists(path):
         return
     if not is_venv(path):
@@ -152,4 +159,5 @@ def remove(path):
 
 
 def run_script(venv_path, script):
+    """Запускает скрипт интерпретатором venv в новом окне консоли."""
     open_console(python_of(venv_path), script)

@@ -8,7 +8,6 @@ from pypath.common.errors import Cancelled, CommandError
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 NEW_CONSOLE = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
 
-# pip на русской Windows может писать не в UTF-8: принудительно просим UTF-8
 _ENV_UTF8 = {"PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
 
 
@@ -29,22 +28,26 @@ class CancelToken:
     """Связывает кнопку «Отмена» с запущенным процессом. cancel() можно звать из любого потока."""
 
     def __init__(self):
+        """Создаёт токен без привязанного процесса и без отмены."""
         self._lock = threading.Lock()
         self._proc = None
         self.cancelled = False
 
     def attach(self, proc):
+        """Привязывает процесс; если отмена уже запрошена, завершает его."""
         with self._lock:
             self._proc = proc
             kill_now = self.cancelled
-        if kill_now:  # отмена пришла раньше, чем процесс запустился
+        if kill_now:
             kill_tree(proc)
 
     def detach(self):
+        """Отвязывает процесс после его завершения."""
         with self._lock:
             self._proc = None
 
     def cancel(self):
+        """Запрашивает отмену и завершает привязанный процесс."""
         with self._lock:
             self.cancelled = True
             proc = self._proc

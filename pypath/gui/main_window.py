@@ -12,13 +12,13 @@ from pypath.system.admin import is_admin, restart_as_admin
 
 class MainWindow(QMainWindow):
     def __init__(self):
+        """Собирает главное окно: страницы, кнопки переключения, строку статуса, индикатор и меню."""
         super().__init__()
         self.setWindowTitle("PyPath Manager")
         self.setMinimumHeight(560)
-        self.resize(900, 700)  # минимальную ширину задаёт содержимое, кнопки не обрезаются
+        self.resize(900, 700)
         self.settings = QSettings(SETTINGS_FILE, QSettings.Format.IniFormat)
 
-        # у каждой страницы своя строка статуса: сообщения одной страницы не должны висеть на другой
         self.status_stack = QStackedWidget()
         statuses = []
         for _ in range(2):
@@ -46,7 +46,7 @@ class MainWindow(QMainWindow):
         top.addStretch()
 
         self.progress = QProgressBar()
-        self.progress.setRange(0, 0)  # бегущая полоска: длительность неизвестна
+        self.progress.setRange(0, 0)
         self.progress.setTextVisible(False)
         self.progress.setFixedSize(120, 12)
         self.progress.hide()
@@ -71,6 +71,7 @@ class MainWindow(QMainWindow):
         self.path_page.refresh()
 
     def create_menu(self):
+        """Создаёт меню «Файл», «Вид» и «Справка» с горячими клавишами."""
         file_menu = self.menuBar().addMenu("Файл")
         self.admin_action = QAction("Запущено от администратора" if is_admin()
                                     else "Перезапустить от администратора", self)
@@ -107,21 +108,25 @@ class MainWindow(QMainWindow):
         help_menu.addAction(about_action)
 
     def update_progress(self):
+        """Показывает индикатор, пока на любой странице идёт операция или проверка обновлений."""
         self.progress.setVisible(any(p.libs.busy or p.libs.checking
                                      for p in (self.path_page, self.venv_page)))
 
     def refresh(self):
+        """Перечитывает данные текущей страницы, если на ней не идёт операция."""
         page = self.stack.currentWidget()
         if page.libs.busy:
             return
         page.refresh()
 
     def focus_search(self):
+        """Переводит фокус на поле поиска библиотек текущей страницы."""
         search = self.stack.currentWidget().libs.search
         search.setFocus()
         search.selectAll()
 
     def restart_as_admin(self):
+        """Перезапускает программу с правами администратора, если нет активных операций."""
         if any(p.libs.busy for p in (self.path_page, self.venv_page)):
             self.status_stack.currentWidget().setText("Дождитесь окончания операции.")
             return
@@ -132,25 +137,27 @@ class MainWindow(QMainWindow):
             self.status_stack.currentWidget().setText("Перезапуск отменён.")
 
     def show_page(self, index):
+        """Переключает окно на страницу с указанным номером."""
         (self.path_button, self.venv_button)[index].setChecked(True)
         self.stack.setCurrentIndex(index)
         self.status_stack.setCurrentIndex(index)
         self.stack.widget(index).on_shown()
 
     def save_settings(self):
+        """Сохраняет выбранный venv в файл настроек."""
         self.settings.setValue("chosen_venv", self.venv_page.chosen or "")
         self.settings.sync()
 
     def closeEvent(self, event):
+        """Прерывает фоновые задачи (при необходимости с подтверждением) и закрывает окно."""
         pages = (self.path_page, self.venv_page)
         if any(p.libs.risky() for p in pages):
             answer = QMessageBox.question(self, "Выход", "Выполняется операция. Прервать её и выйти?")
             if answer != QMessageBox.StandardButton.Yes:
                 event.ignore()
                 return
-        # иначе pip продолжит работать после закрытия окна; ждём, пока процессы будут убиты
         for task in [p.libs.abort() for p in pages]:
             if task:
-                task.wait(10)  # отмена смены Python откатывает изменения, это может занять время
+                task.wait(10)
         self.save_settings()
         super().closeEvent(event)

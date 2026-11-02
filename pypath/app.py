@@ -7,7 +7,8 @@ from pypath.gui.main_window import MainWindow
 
 
 def run():
-    paths.ensure()  # до создания окна: оно читает файлы настроек
+    """Готовит папку данных и лог, создаёт окно и запускает цикл событий Qt."""
+    paths.ensure()
     logs.setup()
     app = QApplication(sys.argv)
     window = MainWindow()

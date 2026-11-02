@@ -12,6 +12,7 @@ class PathPage(Page):
     """Интерпретаторы Python из реестра: выбор активного (PATH) и просмотр его библиотек."""
 
     def __init__(self, status):
+        """Собирает страницу: таблицу интерпретаторов, кнопки и панель библиотек."""
         super().__init__(status)
         self.items = []
 
@@ -36,10 +37,12 @@ class PathPage(Page):
         layout.addWidget(self.libs, 3)
 
     def show_libs(self, row):
+        """Загружает библиотеки интерпретатора из выбранной строки таблицы."""
         exe = self.items[row]["path"] if 0 <= row < len(self.items) else None
         self.libs.load(exe)
 
     def refresh(self):
+        """Заново ищет интерпретаторы, обновляет таблицу и сохраняет выбор строки."""
         self.update_undo_button()
         t = self.python_table
         prev = self.items[t.currentRow()]["path"] if 0 <= t.currentRow() < len(self.items) else None
@@ -68,12 +71,14 @@ class PathPage(Page):
         self.show_libs(row)
 
     def update_undo_button(self):
+        """Включает кнопку отката, если есть снимок PATH, и обновляет её подсказку."""
         snap = path_env.last_change()
         self.undo_btn.setEnabled(snap is not None)
         self.undo_btn.setToolTip(f"Вернуть PATH, каким он был до смены от {snap.time}" if snap
                                  else "Пока нечего откатывать: PATH не менялся из этой программы")
 
     def on_confirm(self):
+        """Делает выбранный интерпретатор активным, изменяя PATH."""
         row = self.python_table.currentRow()
         if row < 0:
             self.say("Выберите интерпретатор в списке.")
@@ -96,6 +101,7 @@ class PathPage(Page):
         self.say("PATH изменён. Перезапустите терминал, чтобы увидеть изменение. Вернуть прежний: «Откатить PATH».")
 
     def on_undo(self):
+        """Возвращает PATH к состоянию до последней смены после подтверждения."""
         snap = path_env.last_change()
         if not snap:
             self.say("Нечего откатывать.")

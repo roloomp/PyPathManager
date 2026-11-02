@@ -30,6 +30,7 @@ def save_requirements(venv_path, text):
 
 
 def _prune():
+    """Удаляет самые старые копии, оставляя не больше MAX_BACKUPS."""
     try:
         files = sorted((os.path.join(BACKUP_DIR, n) for n in os.listdir(BACKUP_DIR) if n.endswith(".txt")),
                        key=os.path.getmtime, reverse=True)

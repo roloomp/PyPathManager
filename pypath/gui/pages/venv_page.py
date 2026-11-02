@@ -17,6 +17,7 @@ from pypath.services.interpreters import get_all
 
 
 def same(a, b):
+    """Сравнивает два пути как одинаковые; None не равен ничему."""
     return a is not None and b is not None and norm(a) == norm(b)
 
 
@@ -24,9 +25,10 @@ class VenvPage(Page):
     """Список виртуальных окружений: создание, смена Python, выбор, запуск скриптов и их библиотеки."""
 
     def __init__(self, status):
+        """Собирает страницу: таблицу venv, кнопки, панель библиотек и строку запуска скрипта."""
         super().__init__(status)
         self.venvs = venv_store.load_list()
-        self.chosen = None  # путь выбранного venv: его библиотеки показаны ниже, в нём запускаются скрипты
+        self.chosen = None
 
         self.venv_table = make_table(["Название", "Путь проекта", "Python", "Статус"], 1, True)
         self.venv_table.setWordWrap(False)
@@ -61,14 +63,14 @@ class VenvPage(Page):
         self.refresh_table()
         self.refresh_pythons()
 
-    # ---- интерфейс страницы ----
-
     def refresh(self):
+        """Перечитывает список Python, таблицу venv и библиотеки."""
         self.refresh_pythons()
         self.refresh_table()
         self.libs.reload()
 
     def on_shown(self):
+        """Обновляет список Python и загружает библиотеки выбранного venv при открытии страницы."""
         self.refresh_pythons()
         self.ensure_libs()
 
@@ -80,16 +82,17 @@ class VenvPage(Page):
             self.refresh_table(select=saved)
 
     def ensure_libs(self):
+        """Загружает библиотеки выбранного venv, если они ещё не загружены."""
         if self.chosen and not self.libs.exe:
             self.libs.load(vn.python_of(self.chosen))
 
-    # ---- таблица и список Python ----
-
     def current_path(self):
+        """Возвращает путь venv из выделенной строки таблицы или None."""
         row = self.venv_table.currentRow()
         return self.venvs[row] if 0 <= row < len(self.venvs) else None
 
     def refresh_pythons(self):
+        """Заполняет список Python и сохраняет прежний выбор; по умолчанию выбран активный."""
         c = self.py_combo
         prev = c.currentData()
         c.clear()
@@ -103,9 +106,11 @@ class VenvPage(Page):
             c.setCurrentIndex(idx)
 
     def update_select_button(self):
+        """Меняет подпись кнопки на «Снять выбор» или «Выбрать» в зависимости от строки."""
         self.select_btn.setText("Снять выбор" if same(self.current_path(), self.chosen) else "Выбрать")
 
     def refresh_table(self, select=None):
+        """Перерисовывает таблицу venv и выделяет строку select или прежнюю."""
         t = self.venv_table
         prev = select or self.current_path()
         t.blockSignals(True)
@@ -126,14 +131,14 @@ class VenvPage(Page):
         self.update_select_button()
 
     def add_venv(self, path, text):
+        """Добавляет venv в список, сохраняет список и выводит сообщение."""
         self.venvs.append(path)
         venv_store.save_list(self.venvs)
         self.refresh_table(select=path)
         self.libs.set_busy(False, text)
 
-    # ---- действия ----
-
     def on_create(self):
+        """Создаёт новый venv в выбранной папке на выбранном Python."""
         python = self.py_combo.currentData()
         if not python:
             self.say("Python не найден.")
@@ -163,10 +168,10 @@ class VenvPage(Page):
                             lambda: self.libs.set_busy(False, "Создание venv отменено."))
 
     def on_add(self):
+        """Добавляет в список существующий venv из выбранной папки."""
         folder = QFileDialog.getExistingDirectory(self, "Папка venv или проекта")
         if not folder:
             return
-        # можно указать как саму папку venv, так и папку проекта, где она лежит
         path = next((p for p in (os.path.normpath(os.path.join(folder, sub))
                                  for sub in ("", ".venv", "venv")) if vn.is_venv(p)), None)
         if not path:
@@ -177,6 +182,7 @@ class VenvPage(Page):
             self.add_venv(path, "venv добавлен.")
 
     def on_delete(self):
+        """Удаляет выделенный venv с диска или только из списка."""
         path = self.current_path()
         if not path:
             self.say("Выберите venv в списке.")
@@ -186,6 +192,7 @@ class VenvPage(Page):
             return
 
         def done(text):
+            """Убирает venv из списка, сбрасывает выбор, если он был выбран, и сохраняет список."""
             if same(path, self.chosen):
                 self.chosen = None
                 self.libs.load(None)
@@ -197,12 +204,13 @@ class VenvPage(Page):
         if mode == "list":
             done("venv убран из списка.")
             return
-        self.libs.release_exe()  # фоновый pip не должен держать файлы удаляемого venv
+        self.libs.release_exe()
         self.libs.set_busy(True, "Удаление venv...")
         run_async(vn.remove, (path,), lambda _: done("venv удалён."),
                   lambda msg: self.libs.set_busy(False, f"Ошибка: {msg}"))
 
     def on_select(self):
+        """Выбирает выделенный venv и загружает его библиотеки или снимает выбор."""
         path = self.current_path()
         if not path:
             self.say("Выберите venv в списке.")
@@ -220,6 +228,7 @@ class VenvPage(Page):
         self.refresh_table()
 
     def on_change(self):
+        """Пересоздаёт выделенный venv на Python, выбранном в списке."""
         path = self.current_path()
         python = self.py_combo.currentData()
         if not path:
@@ -239,6 +248,7 @@ class VenvPage(Page):
             return
 
         def finish(text):
+            """Обновляет таблицу и библиотеки после завершения смены Python."""
             self.refresh_table()
             if same(path, self.chosen):
                 self.libs.load(vn.python_of(path), text + " ")
@@ -246,6 +256,7 @@ class VenvPage(Page):
                 self.libs.set_busy(False, text)
 
         def done(result):
+            """Формирует итоговое сообщение о смене Python с числом непоставленных библиотек."""
             text = "Python изменён."
             if result.failed:
                 text = f"Python изменён, но не удалось установить библиотек: {len(result.failed)}."
@@ -253,7 +264,7 @@ class VenvPage(Page):
                     text += f" Прежний список: {result.backup}"
             finish(text)
 
-        self.libs.release_exe()  # фоновый pip не должен держать файлы venv, который переименуется
+        self.libs.release_exe()
         self.libs.set_busy(True, "Смена Python...")
         self.libs.spawn(vn.recreate, (python, path), done,
                         lambda msg: finish(f"Ошибка: {msg}."),

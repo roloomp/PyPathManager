@@ -20,6 +20,7 @@ def read_path(where):
 
 
 def write_path(where, value, typ):
+    """Записывает переменную Path в реестр."""
     with winreg.OpenKey(where[0], where[1], 0, winreg.KEY_SET_VALUE) as key:
         winreg.SetValueEx(key, "Path", 0, typ, value)
 
@@ -32,6 +33,7 @@ def broadcast_env_change():
 
 
 def _subkeys(key):
+    """Перебирает имена подразделов раздела реестра."""
     i = 0
     while True:
         try:
@@ -42,6 +44,7 @@ def _subkeys(key):
 
 
 def _install_exe(company_key, tag):
+    """Возвращает путь к python.exe из InstallPath или None."""
     try:
         with winreg.OpenKey(company_key, tag + r"\InstallPath") as key:
             return winreg.QueryValueEx(key, "ExecutablePath")[0]
