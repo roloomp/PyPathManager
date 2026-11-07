@@ -2,8 +2,11 @@
 или установки в Program Files эта папка может быть недоступна для записи."""
 import os
 import shutil
+import sys
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+RESOURCE_DIR = getattr(sys, "_MEIPASS", PROJECT_DIR)
+ICON_FILE = os.path.join(RESOURCE_DIR, "assets", "pypath.ico")
 APP_DIR = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "PyPathManager")
 SETTINGS_FILE = os.path.join(APP_DIR, "settings.ini")
 VENVS_FILE = os.path.join(APP_DIR, "venvs.json")

@@ -1,3 +1,5 @@
+<img src="assets/pypathmanager_logo.png" width="128" align="right" alt="PyPath Manager">
+
 # PyPath Manager
 
 Утилита для Windows, которая собирает в одном окне то, что обычно приходится делать руками в реестре и терминале:
