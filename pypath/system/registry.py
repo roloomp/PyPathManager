@@ -1,3 +1,6 @@
+# Copyright (C) 2026 roloomp
+# SPDX-License-Identifier: GPL-3.0-only
+
 """Реестр Windows: переменная Path и список установленных Python (PEP 514)."""
 import ctypes
 import winreg

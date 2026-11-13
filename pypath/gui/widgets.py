@@ -1,3 +1,6 @@
+# Copyright (C) 2026 roloomp
+# SPDX-License-Identifier: GPL-3.0-only
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QFont
 from PyQt6.QtWidgets import (QAbstractItemView, QHBoxLayout, QHeaderView, QLabel, QPushButton, QStyle,

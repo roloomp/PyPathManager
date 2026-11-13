@@ -1,3 +1,6 @@
+# Copyright (C) 2026 roloomp
+# SPDX-License-Identifier: GPL-3.0-only
+
 import sys
 from PyQt6.QtCore import PYQT_VERSION_STR, QT_VERSION_STR
 from PyQt6.QtWidgets import QDialog, QMessageBox, QTextBrowser, QVBoxLayout
@@ -85,4 +88,11 @@ def show_about(parent):
         f"<h3>PyPath Manager {__version__}</h3>"
         "<p>Утилита для управления Python-окружением в Windows: интерпретаторы и PATH, "
         "виртуальные окружения, библиотеки.</p>"
-        f"<p>Python {sys.version.split()[0]}, PyQt {PYQT_VERSION_STR}, Qt {QT_VERSION_STR}</p>")
+        f"<p>Python {sys.version.split()[0]}, PyQt {PYQT_VERSION_STR}, Qt {QT_VERSION_STR}</p>"
+        "<p>© 2026 roloomp.<br>"
+        "Программа распространяется под лицензией GNU GPL версии 3 "
+        "и поставляется БЕЗ КАКИХ-ЛИБО ГАРАНТИЙ. Вы можете свободно распространять её "
+        "на условиях этой лицензии.</p>"
+        '<p>Исходный код и текст лицензии: '
+        '<a href="https://github.com/roloomp/PyPathManager">github.com/roloomp/PyPathManager</a><br>'
+        'Лицензия: <a href="https://www.gnu.org/licenses/gpl-3.0.html">gnu.org/licenses/gpl-3.0.html</a></p>')

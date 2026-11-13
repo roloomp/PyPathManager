@@ -1,3 +1,6 @@
+# Copyright (C) 2026 roloomp
+# SPDX-License-Identifier: GPL-3.0-only
+
 """Копии списков библиотек, которые делаются перед опасными операциями с venv."""
 import logging
 import os

@@ -1,3 +1,6 @@
+# Copyright (C) 2026 roloomp
+# SPDX-License-Identifier: GPL-3.0-only
+
 """Виртуальные окружения: создание, пересоздание, удаление, запуск скриптов."""
 import logging
 import os

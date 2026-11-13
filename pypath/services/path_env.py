@@ -1,3 +1,6 @@
+# Copyright (C) 2026 roloomp
+# SPDX-License-Identifier: GPL-3.0-only
+
 """Смена активного Python: правка переменной Path в реестре, с откатом."""
 import logging
 import os

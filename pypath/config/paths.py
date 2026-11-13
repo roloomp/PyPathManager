@@ -1,3 +1,6 @@
+# Copyright (C) 2026 roloomp
+# SPDX-License-Identifier: GPL-3.0-only
+
 """Где программа хранит свои файлы. Рядом с кодом писать нельзя: после упаковки в exe
 или установки в Program Files эта папка может быть недоступна для записи."""
 import os

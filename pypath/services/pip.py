@@ -1,3 +1,6 @@
+# Copyright (C) 2026 roloomp
+# SPDX-License-Identifier: GPL-3.0-only
+
 """Операции с библиотеками через `python -m pip`. Все функции принимают token для отмены."""
 import json
 

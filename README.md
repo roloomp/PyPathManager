@@ -197,3 +197,8 @@ pyinstaller --noconfirm --onefile --windowed --name PyPathManager --icon assets\
 pip install ruff
 ruff check .
 ```
+
+## Лицензия
+
+PyPath Manager распространяется под лицензией [GNU GPL v3](LICENSE) (`GPL-3.0-only`), без каких-либо гарантий.
+Интерфейс построен на PyQt6, который тоже распространяется под GPL v3.

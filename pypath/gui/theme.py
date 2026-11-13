@@ -1,3 +1,6 @@
+# Copyright (C) 2026 roloomp
+# SPDX-License-Identifier: GPL-3.0-only
+
 """Цветовая схема приложения: как в системе, светлая или тёмная."""
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QPalette

@@ -1,3 +1,6 @@
+# Copyright (C) 2026 roloomp
+# SPDX-License-Identifier: GPL-3.0-only
+
 import os
 
 from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QLineEdit, QWidget
@@ -7,7 +10,7 @@ from pypath.services import venvs
 
 
 class ScriptRow(QWidget):
-    """Строка «файл, Обзор, Запустить»: запускает скрипт в выбранном venv."""
+    """Строка «Файл, Обзор, Запустить»: запускает скрипт в выбранном venv."""
 
     def __init__(self, say, get_venv):
         """say(text): вывод в строку статуса; get_venv(): путь выбранного venv или None."""

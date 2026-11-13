@@ -1,3 +1,6 @@
+# Copyright (C) 2026 roloomp
+# SPDX-License-Identifier: GPL-3.0-only
+
 """Интерпретаторы Python, установленные в системе, и какой из них активен в PATH."""
 import os
 

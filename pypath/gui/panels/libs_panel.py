@@ -1,3 +1,6 @@
+# Copyright (C) 2026 roloomp
+# SPDX-License-Identifier: GPL-3.0-only
+
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QInputDialog, QLineEdit, QVBoxLayout, QWidget
 
