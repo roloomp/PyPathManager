@@ -44,6 +44,12 @@
 
 ## Установка и запуск
 
+**Готовый exe.** Скачайте `PyPathManager.exe` на странице [Releases](https://github.com/roloomp/PyPathManager/releases),
+Python и PyQt для этого не нужны. Windows SmartScreen или антивирус могут предупредить о неподписанном файле:
+это обычная реакция на программы, собранные PyInstaller и меняющие PATH.
+
+**Из исходников:**
+
 ```
 git clone https://github.com/roloomp/PyPathManager.git
 cd PyPathManager
@@ -171,6 +177,17 @@ pypath/
   смена не начнётся: программа сообщит об этом и ничего не изменит.
 - Откат PATH восстанавливает значения целиком: изменения, сделанные другими программами после смены, теряются
   (программа предупредит об этом).
+
+## Сборка exe
+
+Собирать нужно в Windows, в активированном `.venv`:
+
+```
+pip install pyinstaller
+pyinstaller --noconfirm --onefile --windowed --name PyPathManager --icon assets\pypath.ico --add-data "assets;assets" main.py
+```
+
+Готовый файл появится в `dist\PyPathManager.exe`. Версия хранится в `pypath/__init__.py` (`__version__`).
 
 ## Разработка
 

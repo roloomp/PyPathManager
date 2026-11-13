@@ -2,6 +2,8 @@ import sys
 from PyQt6.QtCore import PYQT_VERSION_STR, QT_VERSION_STR
 from PyQt6.QtWidgets import QDialog, QMessageBox, QTextBrowser, QVBoxLayout
 
+from pypath import __version__
+
 DOCS = """
 <h2>PATH</h2>
 <p>В таблице показаны интерпретаторы Python, найденные в реестре Windows. Активный выделен цветом.</p>
@@ -80,7 +82,7 @@ def show_about(parent):
     """Показывает окно «О приложении»."""
     QMessageBox.about(
         parent, "О приложении",
-        "<h3>PyPath Manager</h3>"
+        f"<h3>PyPath Manager {__version__}</h3>"
         "<p>Утилита для управления Python-окружением в Windows: интерпретаторы и PATH, "
         "виртуальные окружения, библиотеки.</p>"
         f"<p>Python {sys.version.split()[0]}, PyQt {PYQT_VERSION_STR}, Qt {QT_VERSION_STR}</p>")
